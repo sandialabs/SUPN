@@ -24,6 +24,7 @@ See the [`tutorials`](./tutorials/) folder.
 
 ## Dependencies
 
+- Python (>= 3.11 supported)
 - PyTorch
 
 # Acknowledgements
