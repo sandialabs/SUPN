@@ -52,8 +52,11 @@ def test_differentiation_2d():
     domain_transform = torch.as_tensor([[-1, 3], [-1, 1]])
     net = SUPN(max_degree=3, width=10, d=2, space='total_degree',
                domain_transform=domain_transform)
-    derivatives = net.dx(grid, order=[1, 2, 3, 4]).reshape(4, grid.shape[1],
-                                                           *X.shape)
+    derivatives, u_xxyy = net.dx(grid, order=[1, 2, 3, 4], return_xxyy=True)
+    derivatives = derivatives.reshape(4, grid.shape[1], *X.shape)
+    u_xxyy = u_xxyy.reshape(X.shape)[1:-1, 1:-1]
+    _, _ = net.dx(grid, order=4, return_xxyy=True)
+
     U = net(grid).flatten().reshape(X.shape)
 
     u_x_approx = (U[2:, :] - U[:-2, :])/(2*dx)
@@ -91,6 +94,15 @@ def test_differentiation_2d():
     u_yyyy_err = ((u_yyyy_approx - derivatives[3, 1, :, 2:-2]).norm() /
                   derivatives[3, 1, :, 2:-2].norm()).item()
     assert max(u_xxxx_err, u_yyyy_err) < 8e-4, 'Error in 2D 4rd derivative'
+
+    u_xxyy_approx = ((U[2:, 2:] - 2*U[1:-1, 2:] + U[:-2, 2:]
+                      - 2*U[2:, 1:-1] + 4*U[1:-1, 1:-1] - 2*U[:-2, 1:-1]
+                      + U[2:, :-2] - 2*U[1:-1, :-2] + U[:-2, :-2]) /
+                     (dx**2 * dy**2)).flatten()
+    u_xxyy_err = ((u_xxyy_approx - u_xxyy.flatten()).norm()
+                  / u_xxyy.norm()).item()
+
+    assert u_xxyy_err < 8e-4, f'Error in u_xxyy: {u_xxyy_err}'
 
 
 def test_precompute_data():

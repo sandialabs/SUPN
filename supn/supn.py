@@ -136,16 +136,18 @@ class SUPN(nn.Module):
         # ----------------------------------------
         adjustment = torch.stack([self.dilation**k for k in
                                   range(T.shape[0])], axis=0)
-        return T_combination * adjustment[..., None, None]
+        return (T_combination * adjustment[..., None, None],
+                T * adjustment[..., None, None])
 
     def precompute_data(self, x: torch.Tensor, r_max: int = 4) -> None:
         assert x.ndim == 2 and x.shape[1] == self.d
         self.x_train = x
         self.precomputed_chebyshev_matrix = (
             self._form_chebyshev_matrix(self._transform(x)))
-        self.T_combination = self._compute_chebyshev_data(x, r_max)
+        self.T_combination, self.T = self._compute_chebyshev_data(x, r_max)
 
-    def dx(self, x: torch.Tensor = None, order: Union[int, list[int]] = 1):
+    def dx(self, x: torch.Tensor = None, order: Union[int, list[int]] = 1,
+           return_xxyy=False):
         r'''
         Returns array of derivatives, size (len(order), d, n_x, n_out)
 
@@ -165,18 +167,19 @@ class SUPN(nn.Module):
             raise ValueError(
                 'Only analytical derivatives up to order 4 are implemented')
 
-        T_combination = (self.T_combination if
-                         ((x is None or (
-                           self.x_train is not None and
-                           x.shape[0] == self.x_train.shape[0] and
-                           torch.allclose(x, self.x_train))) and
-                          self.T_combination is not None)
-                         else self._compute_chebyshev_data(x, max_order))
+        T_combination, T = ((self.T_combination, self.T) if
+                            ((x is None or (
+                              self.x_train is not None and
+                              x.shape[0] == self.x_train.shape[0] and
+                              torch.allclose(x, self.x_train))) and
+                             self.T_combination is not None and
+                             self.T is not None)
+                            else self._compute_chebyshev_data(x, max_order))
 
         # --------------------------------------------------------------------
         # A[r, k, i, :] = \mat{A} T_combination[r, k, i, :]
-        # S[r, k, i, j] = d^r / dx^r (\sigma( \prod_{k=1}^d T_{j_k} )|_{
-        #     x=x^{(i)}_k}
+        # S[r, k, i, j] = \sigma^{(r)} (\prod_{k=1}^d A*T_{j_k}) |_{
+        #                     x=x^{(i)}_k}
         # --------------------------------------------------------------------
         A.append(self.model[0](T_combination[0]))
         S.append(self.model[1](A[0]))
@@ -210,6 +213,28 @@ class SUPN(nn.Module):
             res.append(self.model[2](S[1]*A[4] + 4*S[2]*A[1]*A[3]
                        + 3*S[2]*A[2]**2 + 6*S[3]*A[2]*A[1]**2 + S[4]*A[1]**4
                       ).to(self.device))
+
+        if return_xxyy and max_order == 4:
+
+            M_11 = self.model[0](T[1, 0, ...] * T[1, 1, ...])
+            M_12 = self.model[0](T[1, 0, ...] * T[2, 1, ...])
+            M_21 = self.model[0](T[2, 0, ...] * T[1, 1, ...])
+            M_22 = self.model[0](T[2, 0, ...] * T[2, 1, ...])
+
+            u_xxyy = (self.model[2](S[4][0, ...] * A[1][1]**2 * A[1][0]**2
+                      + S[3][0, ...] * A[2][1] * A[1][0]**2
+                      + 4 * S[3][0, ...] * A[1][1] * A[1][0] * M_11
+                      + 2 * S[2][0, ...] * M_11**2
+                      + 2 * S[2][0, ...] * A[1][0] * M_12
+                      + S[3][0, ...] * A[1][1]**2 * A[2][0]
+                      + S[2][0, ...] * A[2][1] * A[2][0]
+                      + 2 * S[2][0, ...] * A[1][1] * M_21
+                      + S[1][0, ...] * M_22).to(self.device))
+            if len(res) > 1:
+                return torch.stack(res, dim=0), u_xxyy
+            else:
+                return res[0], u_xxyy
+
         return torch.stack(res, dim=0) if len(res) > 1 else res[0]
 
     def _transform(self, x: torch.Tensor) -> torch.Tensor:
@@ -217,7 +242,8 @@ class SUPN(nn.Module):
         Transform [a_1, b_1] \times \dots \times [a_d, b_d] to [-1, 1]^d
         x: shape (N, d)
         '''
-        outside = torch.logical_or(x < self.a, x > self.a + 2.0 / self.dilation)
+        outside = torch.logical_or(x < self.a,
+                                   x > self.a + 2.0 / self.dilation)
         if outside.any():
             raise ValueError('Query point outside specified domain, ' +
                              f'x = {x[outside]}')
