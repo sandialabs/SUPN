@@ -35,20 +35,20 @@ Development of this software was funded by the Laboratory-Directed Research and 
 
 If you use this code in your research, please use the following citations:
 
-1. Z. Morrow, M. Penwarden, B. Chen, A. Javeed, A. Narayan, and J. D. Jakeman. "SUPN: Shallow Universal Polynomial Networks." arXiv preprint [arXiv:2511.21414](https://arxiv.org/abs/2511.21414) (2025).
+1. Z. Morrow, M. Penwarden, B. Chen, A. Javeed, A. Narayan, and J. D. Jakeman. "SUPN: Shallow Universal Polynomial Networks for Efficient Function Approximation." _Transactions on Machine Learning Research_ (2026). URL: https://openreview.net/forum?id=srHGkCrSTM.
 
 2. Z. Morrow, Y. Fu, P. Roy, and M. Penwarden. "Physics-Informed Shallow Universal Polynomial Networks for High-Frequency and High-Order Systems." In preparation (2026).
 
 BibTeX:
 
 ```bibtex
-@misc{morrow2025supn,
-    title = {SUPN: Shallow Universal Polynomial Networks},
-    author = {Zachary Morrow and Michael Penwarden and Brian Chen
-              and Aurya Javeed and Akil Narayan and John D. Jakeman},
-    archivePrefix = {arXiv},
-    eprint = {2511.21414},
-    year = {2025},
+@article{morrow2026supn,
+    title = {{SUPN}: Shallow Universal Polynomial Networks for Efficient Function Approximation},
+    author = {Zachary Morrow and Michael Penwarden and Brian Chen and Aurya Javeed and Akil Narayan and John Davis Jakeman},
+    journal = {Transactions on Machine Learning Research},
+    issn = {2835-8856},
+    year = {2026},
+    url = {https://openreview.net/forum?id=srHGkCrSTM}
 }
 ```
 
