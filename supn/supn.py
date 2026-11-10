@@ -28,7 +28,7 @@ class SUPN(nn.Module):
         self._reset_parameters()
 
     def set_domain_transform(self, domain_transform:
-                             torch.Tensor = None) -> None:
+                             Union[list, torch.Tensor] = None) -> None:
         r'''
         Map x_k \in [a_k, b_k] to z_k \in [-1, 1] via
 
@@ -38,16 +38,17 @@ class SUPN(nn.Module):
             self.dilation = torch.ones((self.d,)).to(self.device)
             self.a = -1 * torch.ones((self.d,)).to(self.device)
         elif (
-                domain_transform.shape[0] != self.d
-                or domain_transform.shape[1] != 2
+                torch.as_tensor(domain_transform).shape[0] != self.d
+                or torch.as_tensor(domain_transform).shape[1] != 2
              ):
             raise ValueError(
                 f'Expected torch.Tensor of shape ({self.d}, 2)'
             )
         else:
-            self.dilation = (2 / (domain_transform[:, 1] -
-                                  domain_transform[:, 0]))
-            self.a = domain_transform[:, 0]
+            _domain_transform = torch.as_tensor(domain_transform)
+            self.dilation = (2 / (_domain_transform[:, 1] -
+                                  _domain_transform[:, 0]))
+            self.a = _domain_transform[:, 0]
 
     def forward(self, x: torch.Tensor, recompute=False) -> torch.Tensor:
         if (self.precomputed_chebyshev_matrix is not None and
@@ -216,10 +217,13 @@ class SUPN(nn.Module):
 
         if return_xxyy and max_order == 4:
 
-            M_11 = self.model[0](T[1, 0, ...] * T[1, 1, ...])
-            M_12 = self.model[0](T[1, 0, ...] * T[2, 1, ...])
-            M_21 = self.model[0](T[2, 0, ...] * T[1, 1, ...])
-            M_22 = self.model[0](T[2, 0, ...] * T[2, 1, ...])
+            T_unaffected = (
+                torch.ones(T.shape[2:]) if self.d == 2 else
+                T[0, 2:, ...].prod(dim=0))
+            M_11 = self.model[0](T[1, 0, ...] * T[1, 1, ...] * T_unaffected)
+            M_12 = self.model[0](T[1, 0, ...] * T[2, 1, ...] * T_unaffected)
+            M_21 = self.model[0](T[2, 0, ...] * T[1, 1, ...] * T_unaffected)
+            M_22 = self.model[0](T[2, 0, ...] * T[2, 1, ...] * T_unaffected)
 
             u_xxyy = (self.model[2](S[4][0, ...] * A[1][1]**2 * A[1][0]**2
                       + S[3][0, ...] * A[2][1] * A[1][0]**2

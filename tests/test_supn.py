@@ -44,65 +44,62 @@ def test_differentiation_1d():
 
 def test_differentiation_2d():
     torch.manual_seed(0)
-    x, y = torch.linspace(-1, 3, 1001), torch.linspace(-1, 1, 1001)
-    (X, Y) = torch.meshgrid(x, y, indexing='ij')
-    grid = torch.stack((X.flatten(), Y.flatten()), dim=-1)
-    dx = x[1] - x[0]
-    dy = y[1] - y[0]
-    domain_transform = torch.as_tensor([[-1, 3], [-1, 1]])
-    net = SUPN(max_degree=3, width=10, d=2, space='total_degree',
+
+    # Prepare for autodiff
+    x_1d = torch.linspace(-1, 3, 21, requires_grad=True)
+    y_1d = torch.linspace(-1, 1, 21, requires_grad=True)
+    z_1d = torch.linspace(2, 7, 3, requires_grad=True)  # for sanity check
+    (X, Y, Z) = torch.meshgrid(x_1d, y_1d, z_1d, indexing='ij')
+    x, y, z = X.flatten(), Y.flatten(), Z.flatten()
+    grid = torch.stack((x, y, z), dim=-1)
+    domain_transform = torch.as_tensor([[-1, 3], [-1, 1], [2, 7]])
+    net = SUPN(max_degree=6, width=10, d=3, space='total_degree',
                domain_transform=domain_transform)
-    derivatives, u_xxyy = net.dx(grid, order=[1, 2, 3, 4], return_xxyy=True)
-    derivatives = derivatives.reshape(4, grid.shape[1], *X.shape)
-    u_xxyy = u_xxyy.reshape(X.shape)[1:-1, 1:-1]
+    u = net(grid).flatten()
+    du, du_xxyy = net.dx(grid, order=[1, 2, 3, 4], return_xxyy=True)
     _, _ = net.dx(grid, order=4, return_xxyy=True)
 
-    U = net(grid).flatten().reshape(X.shape)
+    # Compute autodiff
+    u_x = torch.autograd.grad(u.sum(), x, create_graph=True)[0]
+    u_xx = torch.autograd.grad(u_x.sum(), x, create_graph=True)[0]
+    u_xxx = torch.autograd.grad(u_xx.sum(), x, create_graph=True)[0]
+    u_xxxx = torch.autograd.grad(u_xxx.sum(), x, create_graph=True)[0]
 
-    u_x_approx = (U[2:, :] - U[:-2, :])/(2*dx)
-    u_x_err = ((u_x_approx - derivatives[0, 0, 1:-1, :]).norm() /
-               derivatives[0, 0, 1:-1, :].norm()).item()
-    u_y_approx = (U[:, 2:] - U[:, :-2])/(2*dy)
-    u_y_err = ((u_y_approx - derivatives[0, 1, :, 1:-1]).norm() /
-               derivatives[0, 0, :, 1:-1].norm()).item()
-    assert max(u_x_err, u_y_err) < 8e-5, 'Error in 2D 1st derivative'
+    u_y = torch.autograd.grad(u.sum(), y, create_graph=True)[0]
+    u_yy = torch.autograd.grad(u_y.sum(), y, create_graph=True)[0]
+    u_yyy = torch.autograd.grad(u_yy.sum(), y, create_graph=True)[0]
+    u_yyyy = torch.autograd.grad(u_yyy.sum(), y, create_graph=True)[0]
 
-    u_xx_approx = (U[2:, :] - 2*U[1:-1, :] + U[:-2, :])/(dx**2)
-    u_xx_err = ((u_xx_approx - derivatives[1, 0, 1:-1, :]).norm() /
-                derivatives[1, 0, 1:-1, :].norm()).item()
-    u_yy_approx = (U[:, 2:] - 2*U[:, 1:-1] + U[:, :-2])/(dy**2)
-    u_yy_err = ((u_yy_approx - derivatives[1, 1, :, 1:-1]).norm() /
-                derivatives[1, 1, :, 1:-1].norm()).item()
-    assert max(u_xx_err, u_yy_err) < 9e-5, 'Error in 2D 2nd derivative'
+    u_xxy = torch.autograd.grad(u_xx.sum(), y, create_graph=True)[0]
+    u_xxyy = torch.autograd.grad(u_xxy.sum(), y, create_graph=True)[0]
 
-    u_xxx_approx = ((U[4:, :] - 2*U[3:-1, :] + 2*U[1:-3, :] - U[:-4, :]) /
-                    (2 * dx**3))
-    u_xxx_err = ((u_xxx_approx - derivatives[2, 0, 2:-2, :]).norm() /
-                 derivatives[2, 0, 2:-2, :].norm()).item()
-    u_yyy_approx = ((U[:, 4:] - 2*U[:, 3:-1] + 2*U[:, 1:-3] - U[:, :-4]) /
-                    (2 * dy**3))
-    u_yyy_err = ((u_yyy_approx - derivatives[2, 1, :, 2:-2]).norm() /
-                 derivatives[2, 1, :, 2:-2].norm()).item()
-    assert max(u_xxx_err, u_yyy_err) < 8e-4, 'Error in 2D 3rd derivative'
+    u_x_err = ((du[0, 0, ...].flatten() - u_x.flatten()).norm() /
+               u_x.norm()).item()
+    u_y_err = ((du[0, 1, ...].flatten() - u_y.flatten()).norm() /
+               u_y.norm()).item()
+    assert max(u_x_err, u_y_err) < 1e-14, 'Error in 2D 1st derivative'
 
-    u_xxxx_approx = ((U[4:, :] - 4*U[3:-1, :] + 6*U[2:-2, :] - 4*U[1:-3, :]
-                      + U[:-4, :]) / (dx**4))
-    u_xxxx_err = ((u_xxxx_approx - derivatives[3, 0, 2:-2, :]).norm() /
-                  derivatives[3, 0, 2:-2, :].norm()).item()
-    u_yyyy_approx = ((U[:, 4:] - 4*U[:, 3:-1] + 6*U[:, 2:-2] - 4*U[:, 1:-3]
-                      + U[:, :-4]) / (dy**4))
-    u_yyyy_err = ((u_yyyy_approx - derivatives[3, 1, :, 2:-2]).norm() /
-                  derivatives[3, 1, :, 2:-2].norm()).item()
-    assert max(u_xxxx_err, u_yyyy_err) < 8e-4, 'Error in 2D 4rd derivative'
+    u_xx_err = ((du[1, 0, ...].flatten() - u_xx.flatten()).norm() /
+                u_xx.norm()).item()
+    u_yy_err = ((du[1, 1, ...].flatten() - u_yy.flatten()).norm() /
+                u_y.norm()).item()
+    assert max(u_xx_err, u_yy_err) < 1e-14, 'Error in 2D 2nd derivative'
 
-    u_xxyy_approx = ((U[2:, 2:] - 2*U[1:-1, 2:] + U[:-2, 2:]
-                      - 2*U[2:, 1:-1] + 4*U[1:-1, 1:-1] - 2*U[:-2, 1:-1]
-                      + U[2:, :-2] - 2*U[1:-1, :-2] + U[:-2, :-2]) /
-                     (dx**2 * dy**2)).flatten()
-    u_xxyy_err = ((u_xxyy_approx - u_xxyy.flatten()).norm()
+    u_xxx_err = ((du[2, 0, ...].flatten() - u_xxx.flatten()).norm() /
+                 u_xxx.norm()).item()
+    u_yyy_err = ((du[2, 1, ...].flatten() - u_yyy.flatten()).norm() /
+                 u_yyy.norm()).item()
+    assert max(u_xxx_err, u_yyy_err) < 1e-14, 'Error in 2D 3rd derivative'
+
+    u_xxxx_err = ((du[3, 0, ...].flatten() - u_xxxx.flatten()).norm() /
+                  u_xxxx.norm()).item()
+    u_yyyy_err = ((du[3, 1, ...].flatten() - u_yyyy.flatten()).norm() /
+                  u_yyyy.norm()).item()
+    assert max(u_xxxx_err, u_yyyy_err) < 1e-14, 'Error in 2D 4rd derivative'
+
+    u_xxyy_err = ((u_xxyy.flatten() - du_xxyy.flatten()).norm()
                   / u_xxyy.norm()).item()
-
-    assert u_xxyy_err < 8e-4, f'Error in u_xxyy: {u_xxyy_err}'
+    assert u_xxyy_err < 1e-14, f'Error in u_xxyy: {u_xxyy_err}'
 
 
 def test_precompute_data():
