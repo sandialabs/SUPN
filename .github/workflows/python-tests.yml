@@ -43,6 +43,9 @@ jobs:
       # https://stackoverflow.com/questions/64781462/github-actions-default-branch-variable
       if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
       uses: we-cli/coverage-badge-action@main
+      with: 
+        attempt_limit: 5
+        attempt_delay: 5000
 
 concurrency:
   group: ci-${{ github.ref }}
