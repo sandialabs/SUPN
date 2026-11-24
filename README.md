@@ -3,6 +3,7 @@
 [![Python Tests](https://github.com/sandialabs/SUPN/actions/workflows/python-tests.yml/badge.svg)](https://github.com/sandialabs/SUPN/actions/workflows/python-tests.yml)
 [![Coverage](https://github.com/sandialabs/SUPN/blob/gh-pages/badges/coverage.svg)](https://github.com/sandialabs/SUPN/actions)
 [![TMLR](https://img.shields.io/badge/TMLR-published-brightgreen)](https://openreview.net/forum?id=srHGkCrSTM)
+[![arXiv](https://img.shields.io/badge/arXiv-2611.28393-blue)](https://arxiv.org/abs/2611.28393)
 
 SUPNs (Shallow Universal Polynomial Networks) are parsimonious, yet highly expressive, surrogate models of the form
 
@@ -37,7 +38,7 @@ If you use this code in your research, please use the following citations:
 
 1. Z. Morrow, M. Penwarden, B. Chen, A. Javeed, A. Narayan, and J. D. Jakeman. "SUPN: Shallow Universal Polynomial Networks for Efficient Function Approximation." _Transactions on Machine Learning Research_ (2026). URL: https://openreview.net/forum?id=srHGkCrSTM.
 
-2. Z. Morrow, Y. Fu, P. Roy, and M. Penwarden. "Physics-Informed Shallow Universal Polynomial Networks for High-Frequency and High-Order Systems." In preparation (2026).
+2. Z. Morrow, Y. Fu, P. Roy, and M. Penwarden. "Expressive Shallow Networks for Physics-Informed Learning: Why Curvature-Aware Optimization and FP64 Are Not Enough." 2026. arXiv preprint [2611.28393](https://arxiv.org/abs/2611.28393).
 
 BibTeX:
 
@@ -49,6 +50,16 @@ BibTeX:
     issn = {2835-8856},
     year = {2026},
     url = {https://openreview.net/forum?id=srHGkCrSTM}
+}
+
+@misc{morrow2026expressive,
+    title = {Expressive Shallow Networks for Physics-Informed Learning: Why Curvature-Aware Optimization and {FP}64 Are Not Enough}, 
+    author = {Zachary Morrow and Yucheng Fu and Pratanu Roy and Michael Penwarden},
+    year = {2026},
+    eprint = {2611.28393},
+    archivePrefix = {arXiv},
+    primaryClass = {physics.comp-ph},
+    url = {https://arxiv.org/abs/2611.28393}, 
 }
 ```
 
